@@ -49,6 +49,8 @@ class CursesMenu(object):
 
         self.exit_item = ExitItem(menu=self)
 
+        self.hotkeys = {}
+
         self.current_option = 0
         self.selected_option = -1
 
@@ -61,6 +63,7 @@ class CursesMenu(object):
         self._main_thread = None
 
         self._running = threading.Event()
+
 
     def __repr__(self):
         return "%s: %s. %d items" % (self.title, self.subtitle, len(self.items))
@@ -85,7 +88,7 @@ class CursesMenu(object):
         else:
             return None
 
-    def append_item(self, item):
+    def append_item(self, item, hotkey=None):
         """
         Add an item to the end of the menu before the exit item
 
@@ -94,6 +97,11 @@ class CursesMenu(object):
         did_remove = self.remove_exit()
         item.menu = self
         self.items.append(item)
+
+        if hotkey is not None:
+            item.hotkey = hotkey
+            self.hotkeys[hotkey] = len(self.items) - 1
+
         if did_remove:
             self.add_exit()
         if self.screen:
@@ -281,6 +289,10 @@ class CursesMenu(object):
 
         if ord('1') <= user_input <= go_to_max:
             self.go_to(user_input - ord('0') - 1)
+
+        elif chr(user_input) in self.hotkeys:
+            self.current_option = self.hotkeys[chr(user_input)]
+            self.select()
         elif user_input == curses.KEY_DOWN:
             self.go_down()
         elif user_input == curses.KEY_UP:
@@ -358,7 +370,7 @@ class MenuItem(object):
     A generic menu item
     """
 
-    def __init__(self, text, menu=None, should_exit=False):
+    def __init__(self, text, menu=None, should_exit=False, hotkey=None):
         """
         :ivar str text: The text shown for this menu item
         :ivar CursesMenu menu: The menu to which this item belongs
@@ -367,6 +379,7 @@ class MenuItem(object):
         self.text = text
         self.menu = menu
         self.should_exit = should_exit
+        self.hotkey = hotkey
 
     def __str__(self):
         return "%s %s" % (self.menu.title, self.text)
@@ -385,7 +398,8 @@ class MenuItem(object):
         :return: The representation of the item to be shown in a menu
         :rtype: str
         """
-        return "%d - %s" % (index + 1, self.text)
+        hotkey_string = "" if self.hotkey is None else "[%s]" % self.hotkey
+        return "%d - %s %s" % (index + 1, self.text, hotkey_string)
 
     def set_up(self):
         """
